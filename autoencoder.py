@@ -19,29 +19,38 @@ class Autoencoder_cnn(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(n_channels,16,3, stride=2, padding=1),
             nn.BatchNorm2d(16),
-            nn.ReLU(),
+            nn.ReLU(), #(batch_size, 16, 14,14)
             nn.Conv2d(16,32,3, stride=2, padding=1),
             nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.Conv2d(32,64,7),
+            nn.ReLU(),  #(batch_size, 32, 7,7)
+            nn.Conv2d(32,64,3,stride=2, padding=1),
             nn.BatchNorm2d(64),
-            nn.ReLU(), #TODO: relu or not relu?
+            nn.ReLU(), # (batch_size, 64, 4, 4)
+            nn.Conv2d(64,128,2,stride=1, padding=0),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),  #(batch_size, 128, 3, 3). 
             nn.Flatten(),
-            nn.Linear(64, latent_dim) #  # Two outputs for mean and variance of the latent distribution
+            nn.Linear(128*3*3, 64),
+            nn.ReLU(),
+            nn.Linear(64,latent_dim)
         )
 
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, 64),
             nn.ReLU(),
-            nn.Unflatten(-1, (64, 1, 1)),
-            nn.ConvTranspose2d(64,32,7),
+            nn.Linear(64, 128*3*3),
+            nn.ReLU(),
+            nn.Unflatten(1, (128, 3, 3)),
+            nn.ConvTranspose2d(128, 64, 2, stride=1, padding=0),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=0),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.ConvTranspose2d(32,16,3, stride=2,padding=1, output_padding=1),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.ConvTranspose2d(16,n_channels,3, stride=2,padding=1, output_padding=1),
-            nn.BatchNorm2d(n_channels),
+            nn.ConvTranspose2d(16, n_channels, 3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
         )
 
@@ -69,7 +78,7 @@ class Autoencoder_cnn(nn.Module):
         return samples
 
     def fit(self, gen:StackedMNISTData, epochs, batch_size=64, visualize=False):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001) #TODO: generalize
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.0005) #TODO: generalize
         if visualize: #show original images
             outputs = []
         for epoch in range(epochs):
@@ -173,12 +182,15 @@ class Autoencoder_cnn(nn.Module):
 
 
 def main():
-    gen_miss = StackedMNISTData(mode=DataMode.MONO_BINARY_MISSING, default_batch_size=10)
-    model_miss = Autoencoder_cnn(n_channels=1, criterion=nn.BCELoss(),latent_dim=16)
-    model_miss.fit(gen_miss, epochs=16, visualize=True)
-    test_set = gen_miss.get_full_data_set(training = False)
-    test_img, test_cls = test_set
-    anomalies = model_miss.get_anomalious_imgs(test_img,test_cls,show_random=True, n_random=10)
+    #gen_miss = StackedMNISTData(mode=DataMode.MONO_BINARY_MISSING, default_batch_size=10)
+    #model_miss = Autoencoder_cnn(n_channels=1, criterion=nn.BCELoss(),latent_dim=16)
+    #model_miss.fit(gen_miss, epochs=16, visualize=True)
+    #test_set = gen_miss.get_full_data_set(training = False)
+    #test_img, test_cls = test_set
+    #anomalies = model_miss.get_anomalious_imgs(test_img,test_cls,show_random=True, n_random=10)
+    gen = StackedMNISTData(mode=DataMode.MONO_BINARY_COMPLETE, default_batch_size=10)
+    model = Autoencoder_cnn(n_channels=1, criterion=nn.BCELoss(),latent_dim=2) #16
+    model.fit(gen, epochs=40, visualize=True)
                 
 
 if __name__ == "__main__":
