@@ -1,4 +1,5 @@
 import math
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -31,14 +32,18 @@ class Autoencoder_cnn(nn.Module):
             nn.ReLU(),  #(batch_size, 128, 3, 3). 
             nn.Flatten(),
             nn.Linear(128*3*3, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
-            nn.Linear(64,latent_dim)
+            nn.Linear(64,latent_dim),
+            nn.BatchNorm1d(latent_dim)
         )
 
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, 128*3*3),
+            nn.BatchNorm1d(128*3*3),
             nn.ReLU(),
             nn.Unflatten(1, (128, 3, 3)),
             nn.ConvTranspose2d(128, 64, 2, stride=1, padding=0),
@@ -177,6 +182,25 @@ class Autoencoder_cnn(nn.Module):
             return anomaly_imgs, anomaly_imgs_cls
         return anomaly_imgs
         
+
+    def save(self, filepath):
+        # Create the directory if it does not exist
+        os.makedirs(filepath, exist_ok=True)
+
+        encoder_state_dict = self.encoder.state_dict()
+        decoder_state_dict = self.decoder.state_dict()
+        torch.save(encoder_state_dict, filepath+"/encoder")
+        torch.save(decoder_state_dict, filepath+"/decoder")
+
+    @staticmethod
+    def load(filepath, n_channels, latent_dim):
+        encoder_state_dict = torch.load(filepath+"/encoder")
+        decoder_state_dict = torch.load(filepath+"/decoder")
+        model =  Autoencoder_cnn(n_channels=n_channels, criterion=nn.BCELoss(),latent_dim=latent_dim)
+        model.encoder.load_state_dict(encoder_state_dict)
+        model.decoder.load_state_dict(decoder_state_dict)
+        return model
+        
         
 
 
@@ -188,9 +212,10 @@ def main():
     #test_set = gen_miss.get_full_data_set(training = False)
     #test_img, test_cls = test_set
     #anomalies = model_miss.get_anomalious_imgs(test_img,test_cls,show_random=True, n_random=10)
-    gen = StackedMNISTData(mode=DataMode.MONO_BINARY_COMPLETE, default_batch_size=10)
-    model = Autoencoder_cnn(n_channels=1, criterion=nn.BCELoss(),latent_dim=2) #16
-    model.fit(gen, epochs=40, visualize=True)
+    #gen = StackedMNISTData(mode=DataMode.MONO_BINARY_COMPLETE, default_batch_size=10)
+    #model = Autoencoder_cnn(n_channels=1, criterion=nn.BCELoss(),latent_dim=2) #16
+    #model.fit(gen, epochs=40, visualize=True)
+    model = Autoencoder_cnn.load("autoencoders/model_1", n_channels=1, latent_dim=4)
                 
 
 if __name__ == "__main__":
