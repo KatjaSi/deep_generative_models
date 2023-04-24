@@ -181,6 +181,23 @@ class Autoencoder_cnn(nn.Module):
             anomaly_imgs_cls = img_cls[reconstruction_loss > anomaly_loss]
             return anomaly_imgs, anomaly_imgs_cls
         return anomaly_imgs
+    
+    def get_top_k_anomalious(self, imgs, k, show=False):
+        reconstruction_loss = self.get_reconstruction_loss(imgs)
+        # Get the indices of the k images with the highest reconstruction loss
+        top_k_indices = np.argsort(reconstruction_loss)[-k:]
+        anomalies = imgs[top_k_indices]
+        if show:
+            n_rows = math.ceil(k / 10)  # calculate the number of rows
+            plt.figure(figsize=(15, n_rows * 3))  # adjust the figure height 
+            i = 0
+            for item in anomalies:
+                plt.subplot(n_rows, 10, i + 1)
+                i = i+1
+                plt.imshow(item.astype(np.float), vmin=0, vmax=1)  # specify cmap and scaling
+                plt.axis('off')  # turn off axis
+        return anomalies
+
         
 
     def save(self, filepath):
