@@ -83,7 +83,7 @@ class Autoencoder_cnn(nn.Module):
         return samples
 
     def fit(self, gen:StackedMNISTData, epochs, batch_size=64, visualize=False):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.0005) #TODO: generalize
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.0005) 
         if visualize: #show original images
             outputs = []
         for epoch in range(epochs):
